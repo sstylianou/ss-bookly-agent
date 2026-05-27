@@ -28,10 +28,8 @@ def init_session():
 
 def render_sidebar():
     with st.sidebar:
-        st.image(
-            "https://via.placeholder.com/200x60/1a1a2e/FFFFFF?text=📚+Bookly",
-            use_container_width=True
-        )
+        st.markdown("# 📚 Bookly")
+        st.caption("Customer Support Portal")
         st.divider()
 
         st.subheader("🧪 Demo Credentials")
