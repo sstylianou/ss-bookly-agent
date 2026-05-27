@@ -64,8 +64,11 @@ Bex asks for the order ID and email before looking anything up. Once provided, i
 
 Bex collects order ID and email, looks up the order, then asks which item to return and the reason — all before calling `initiate_return`. On success, returns a prepaid label confirmation and refund timeline.
 
-- Demonstrates: **multi-step multi-turn flow → tool action**
+If the customer already provided their email earlier in the conversation (e.g. during an order lookup), Bex reuses it and skips asking again.
+
+- Demonstrates: **multi-step multi-turn flow → tool action; context retention across turns**
 - Try with: `BK-1042` / `alex@example.com` — within the 30-day window ✅
+- **Tip for demo:** Look up the order first, then say *"actually I'd like to return it"* — Bex will go straight to asking which item, not the email again
 
 ---
 
@@ -185,7 +188,7 @@ No frameworks. No LangChain. No agent orchestration platforms. One class, one AP
 |---|---|---|---|
 | 1 | **Bookly scope only** — off-topic questions redirected | ✅ Instruction + 2 examples | — |
 | 2 | **Grounded responses** — no invented policies or details | ✅ Anti-hallucination instruction | ✅ Tools are the only source of dynamic data |
-| 3 | **No unauthorised data access** — identity verified before any order data returned | ✅ Must collect order ID + email first | ✅ `get_order_status` and `initiate_return` verify email server-side; mismatch = hard denial |
+| 3 | **No unauthorised data access** — identity verified before any order data returned | ✅ Collect order ID + email before any lookup; reuse email already given — never ask twice | ✅ `get_order_status` and `initiate_return` verify email server-side; mismatch = hard denial |
 
 > **Key point for demos:** Guardrail 3 lives in both the prompt *and* the code. The prompt can be persuaded — the code cannot.
 
