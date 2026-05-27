@@ -49,6 +49,10 @@ def render_sidebar():
             st.code("Order ID:  BK-3011\nEmail:     alex@example.com", language=None)
             st.caption("Status: Delivered • 37 days old — return window closed")
 
+        with st.expander("⭐ Subscription upsell trigger (BK-0988)"):
+            st.code("Order ID:  BK-0988\nEmail:     alex@example.com", language=None)
+            st.caption("Status: Delivered • 4th order in 45 days → triggers plan recommendation")
+
         st.divider()
         st.subheader("💬 Suggested prompts")
         st.markdown("""
