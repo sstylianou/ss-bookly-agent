@@ -76,6 +76,25 @@ ORDERS = {
         "estimated_delivery": "2026-04-25",
         "tracking_number": "TRK-8812211",
         "shipping_method": "Standard Delivery"
+    },
+    "BK-0988": {
+        "order_id": "BK-0988",
+        "customer_email": "alex@example.com",
+        "customer_name": "Alex",
+        "status": "delivered",
+        "items": [
+            {
+                "id": "IT-005",
+                "title": "Sapiens: A Brief History of Humankind",
+                "author": "Yuval Noah Harari",
+                "price": 14.99,
+                "type": "physical"
+            }
+        ],
+        "order_date": "2026-05-10",       # 17 days ago — 4th order in 45 days → triggers subscription upsell
+        "estimated_delivery": "2026-05-15",
+        "tracking_number": "TRK-7751002",
+        "shipping_method": "Standard Delivery"
     }
 }
 

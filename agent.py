@@ -15,10 +15,13 @@ Claude has perfect context. In production: sliding window or RAG for policy docs
 
 import uuid
 import anthropic
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from config import IDENTITY, TASK_SPECIFIC_INSTRUCTIONS, TOOLS, MODEL
 from mock_data import ORDERS, RETURN_WINDOW_DAYS
+
+SUBSCRIPTION_ORDER_THRESHOLD = 3   # more than this many orders in the window triggers the upsell
+SUBSCRIPTION_WINDOW_DAYS = 45
 
 
 class BooklyAgent:
@@ -183,6 +186,21 @@ class BooklyAgent:
             for item in order["items"]
         )
 
+        # Check subscription eligibility: count this customer's orders in the last 45 days
+        cutoff = date.today() - timedelta(days=SUBSCRIPTION_WINDOW_DAYS)
+        recent_order_count = sum(
+            1 for o in ORDERS.values()
+            if o["customer_email"].lower() == customer_email.strip().lower()
+            and datetime.strptime(o["order_date"], "%Y-%m-%d").date() >= cutoff
+        )
+        subscription_note = ""
+        if recent_order_count > SUBSCRIPTION_ORDER_THRESHOLD:
+            subscription_note = (
+                f"\n⭐ SUBSCRIPTION UPSELL OPPORTUNITY: This customer has placed "
+                f"{recent_order_count} orders in the last {SUBSCRIPTION_WINDOW_DAYS} days. "
+                "After resolving their issue, recommend the Bookly Subscription Plan."
+            )
+
         return f"""IDENTITY VERIFIED ✓ — Order data retrieved successfully.
 
 Order ID:           {order['order_id']}
@@ -196,7 +214,7 @@ Shipping method:    {order['shipping_method']}
 Items ordered:
 {items_str}
 
-Return eligibility: {return_status}
+Return eligibility: {return_status}{subscription_note}
 """
 
     def _initiate_return(

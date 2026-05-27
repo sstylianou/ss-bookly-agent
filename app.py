@@ -64,16 +64,22 @@ def render_sidebar():
 **Guardrails demo**
 - *Can you help me write an email?*
   → Scope guardrail (Guardrail 1)
-- *Wrong email on BK-1042*
+- *Wrong email on any order*
   → Unauthorised access block (Guardrail 3)
 - *BK-3011 return attempt*
   → Policy enforcement in code
 
+**Subscription upsell**
+- Look up any order → Bex sees 4 orders
+  in 45 days → recommends the plan
+  after resolving the issue
+
 **Closing the conversation**
 - *Thanks, that's all I needed!*
-  → Triggers NPS score request
-- Give a score of 3 → follow-up questions
-- Give a score of 8 → straight to thank you
+  → Bex confirms no more questions
+  → then asks for NPS score
+- Score ≤6 → up to 2 follow-up questions
+- Score 7+ → straight to thank you
 """)
 
         st.divider()
