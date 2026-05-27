@@ -15,8 +15,8 @@ Dates are relative to today (2026-05-27):
 ORDERS = {
     "BK-1042": {
         "order_id": "BK-1042",
-        "customer_email": "alice@example.com",
-        "customer_name": "Alice",
+        "customer_email": "alex@example.com",
+        "customer_name": "Alex",
         "status": "shipped",
         "items": [
             {
@@ -34,8 +34,8 @@ ORDERS = {
     },
     "BK-2055": {
         "order_id": "BK-2055",
-        "customer_email": "bob@example.com",
-        "customer_name": "Bob",
+        "customer_email": "alex@example.com",
+        "customer_name": "Alex",
         "status": "processing",
         "items": [
             {
@@ -60,8 +60,8 @@ ORDERS = {
     },
     "BK-3011": {
         "order_id": "BK-3011",
-        "customer_email": "carol@example.com",
-        "customer_name": "Carol",
+        "customer_email": "alex@example.com",
+        "customer_name": "Alex",
         "status": "delivered",
         "items": [
             {

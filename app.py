@@ -35,16 +35,18 @@ def render_sidebar():
         st.subheader("🧪 Demo Credentials")
         st.caption("Copy these to test each scenario")
 
+        st.caption("All orders share one email address: **alex@example.com**")
+
         with st.expander("✅ Shipped order (BK-1042)", expanded=True):
-            st.code("Order ID:  BK-1042\nEmail:     alice@example.com", language=None)
+            st.code("Order ID:  BK-1042\nEmail:     alex@example.com", language=None)
             st.caption("Status: Shipped • Within return window")
 
         with st.expander("⏳ Processing order (BK-2055)"):
-            st.code("Order ID:  BK-2055\nEmail:     bob@example.com", language=None)
+            st.code("Order ID:  BK-2055\nEmail:     alex@example.com", language=None)
             st.caption("Status: Processing • Return not yet available")
 
         with st.expander("❌ Expired return window (BK-3011)"):
-            st.code("Order ID:  BK-3011\nEmail:     carol@example.com", language=None)
+            st.code("Order ID:  BK-3011\nEmail:     alex@example.com", language=None)
             st.caption("Status: Delivered • 37 days old — return window closed")
 
         st.divider()
@@ -65,7 +67,13 @@ def render_sidebar():
 - *Wrong email on BK-1042*
   → Unauthorised access block (Guardrail 3)
 - *BK-3011 return attempt*
-  → Policy enforcement in code (not just prompt)
+  → Policy enforcement in code
+
+**Closing the conversation**
+- *Thanks, that's all I needed!*
+  → Triggers NPS score request
+- Give a score of 3 → follow-up questions
+- Give a score of 8 → straight to thank you
 """)
 
         st.divider()
