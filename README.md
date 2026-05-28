@@ -1,251 +1,179 @@
 # Bookly Support Agent — Bex
 
-A conversational AI support agent for **Bookly**, a fictional online bookstore.
-Built with Python, the Anthropic Claude API, and Streamlit — no agent frameworks, no orchestration platforms.
+A conversational support agent for **Bookly**, a fictional online bookstore. Python, the Anthropic Claude API, and Streamlit. No agent frameworks, no orchestration, no LangChain.
 
-> **Take-home assignment prototype.** Code is intentionally direct and readable over production-hardened.
+> Take-home prototype. Built for readability and demo clarity over production hardening.
 
-🌐 **Live demo:** [ss-bookly-agent.streamlit.app](https://ss-bookly-agent.streamlit.app)
+**Live demo:** [ss-bookly-agent.streamlit.app](https://ss-bookly-agent.streamlit.app)
 
 ---
 
-## Quick Start
+## Quick start
 
-### 1. Clone & install
 ```bash
 git clone https://github.com/sstylianou/ss-bookly-agent
 cd ss-bookly-agent
 pip install -r requirements.txt
-```
 
-### 2. Set your API key
-```bash
-cp .env.example .env
-# Add your Anthropic API key to .env
-```
-
-### 3. Run
-```bash
-streamlit run app.py
-# Opens at http://localhost:8501
+cp .env.example .env        # then paste your Anthropic key
+streamlit run app.py        # http://localhost:8501
 ```
 
 ---
 
-## Demo Credentials
+## Demo credentials
 
-All orders belong to one customer — no email-switching mid-demo.
+All four orders belong to one customer so the demo never has to switch email.
 
-| Order ID | Email | Status | Key scenario |
-|---|---|---|---|
-| `BK-1042` | `alex@example.com` | Shipped | Order lookup, return request |
-| `BK-2055` | `alex@example.com` | Processing | Return blocked (not yet shipped) |
-| `BK-3011` | `alex@example.com` | Delivered | Return blocked (outside 30-day window) |
-| `BK-0988` | `alex@example.com` | Delivered | 4th order — triggers subscription upsell |
+| Order ID  | Status     | What it shows                                              |
+|-----------|------------|------------------------------------------------------------|
+| `BK-1042` | Shipped    | Order lookup and a return that goes through                |
+| `BK-2055` | Processing | Return blocked because the order hasn't shipped yet        |
+| `BK-3011` | Delivered  | Return blocked because the 30-day window has expired       |
+| `BK-0988` | Delivered  | 4th order in 45 days — triggers the subscription offer     |
 
-> All four orders are available whenever you look up any order for `alex@example.com` — the subscription flag fires automatically.
-
----
-
-## Use Cases
-
-### 1. Order Status Lookup
-**What to say:** *"Where is my order?"*
-
-Bex asks for the order ID and email before looking anything up. Once provided, it calls `get_order_status` and returns status, estimated delivery, tracking number, and return eligibility.
-
-- Demonstrates: **multi-turn identity collection → tool use**
-- Try with: `BK-1042` / `alex@example.com`
+Email for all of them: `alex@example.com`.
 
 ---
 
-### 2. Return Request
-**What to say:** *"I'd like to return a book"*
+## What Bex can do
 
-Bex collects order ID and email, looks up the order, then asks which item to return and the reason — all before calling `initiate_return`. On success, returns a prepaid label confirmation and refund timeline.
+### 1. Look up an order
+Say *"Where is my order?"*. Bex asks for the order ID and email, then calls `get_order_status` and replies with status, ETA, tracking, and return eligibility. Try `BK-1042`.
 
-If the customer already provided their email earlier in the conversation (e.g. during an order lookup), Bex reuses it and skips asking again.
+### 2. Start a return
+Say *"I want to return a book"*. Bex collects the order details, verifies identity, then asks which item and why before calling `initiate_return`. Returns inside the 30-day window succeed; everything else is blocked in code, not just in the prompt.
 
-- Demonstrates: **multi-step multi-turn flow → tool action; context retention across turns**
-- Try with: `BK-1042` / `alex@example.com` — within the 30-day window ✅
-- **Tip for demo:** Look up the order first, then say *"actually I'd like to return it"* — Bex will go straight to asking which item, not the email again
+If you look up an order first and then ask to return it, Bex reuses the email you already gave — no double prompt.
 
----
+### 3. Block returns that shouldn't go through
+- `BK-2055` is still processing → Bex declines and explains why.
+- `BK-3011` is 38 days old → Bex declines and offers to raise a manager-exception ticket.
 
-### 3. Return Blocked — Order Still Processing
-**What to say:** *"I want to return my order"*
+Both checks live in `agent.py`, not in the prompt. The model can't be talked out of them.
 
-Bex looks up the order and finds it hasn't shipped yet. Politely explains returns can only be started once the item has been dispatched.
+### 4. Answer policy questions without making things up
+Ask *"What's your return policy?"* or *"How do I reset my password?"*. Bex reads from the static policy block in `config.py`. If something isn't there, it says so rather than guess (Guardrail 2).
 
-- Demonstrates: **eligibility check enforced in code, not just prompt**
-- Try with: `BK-2055` / `alex@example.com`
+### 5. Escalate without friction
+If you're frustrated, Bex offers to raise a priority ticket on your behalf rather than leading with a phone number. Say yes and it calls `escalate_to_human`, returns a ticket ID, and tells you when to expect a reply. Say no and only then does it share the support email and phone line.
 
----
+### 6. Refuse off-topic requests
+Try *"Help me write a cover letter"*. Bex politely declines and redirects (Guardrail 1).
 
-### 4. Return Blocked — Outside 30-Day Window
-**What to say:** *"I want to return a book I ordered a while back"*
+### 7. Block unauthorised access
+Try looking up `BK-1042` with the wrong email. The tool verifies server-side and returns `IDENTITY_VERIFICATION_FAILED` — no order data leaks. Bex apologises and offers to escalate (Guardrail 3).
 
-Bex looks up the order, calculates days since purchase (37 days), and declines the return. Offers to escalate to a human agent for a manager exception.
+### 8. Run the subscription offer
+Look up any order for `alex@example.com`. The tool flags `⭐ SUBSCRIPTION UPSELL OPPORTUNITY` because there are 4 orders in 45 days. After Bex resolves your issue and you confirm there's nothing else, it calls `present_subscription_offer`, which renders an inline 3-stage flow:
 
-- Demonstrates: **policy enforcement in code** — the 30-day check runs server-side regardless of how the request is phrased
-- Try with: `BK-3011` / `alex@example.com`
+1. **Offer card** — plan summary, *"Yes, sign me up"* or *"Maybe later"*.
+2. **Payment confirmation** — masked Visa card on file, confirm or cancel.
+3. **Book carousel** — 6 personalised titles, pick exactly 2, then confirm.
 
----
+Everything happens in chat. No app redirect.
 
-### 5. Policy FAQ — No Tool Required
-**What to say:** *"What is your return policy?"* / *"How long does shipping take?"* / *"How do I reset my password?"*
+### 9. Close the conversation properly
+Say *"Thanks, that's all"*. Bex first checks there's nothing else, then asks for an NPS score:
 
-Bex answers directly from the static context in its prompt — no tool call needed. If a policy detail isn't in the context, Bex says so rather than guessing.
+| Score | Behaviour                                       |
+|-------|-------------------------------------------------|
+| 0–6   | Bex thanks you, asks up to 2 follow-up questions, then closes |
+| 7–10  | Bex skips follow-ups and closes warmly          |
 
-- Demonstrates: **grounded responses (Guardrail 2)** — Bex only states what it knows
-
----
-
-### 6. Escalation to Human Agent
-**What to say:** *"I've been waiting 3 weeks and nobody is helping me!"*
-
-Bex recognises frustration, validates the customer's experience, and calls `escalate_to_human` — generating a ticket ID, summary, and expected response time.
-
-- Demonstrates: **empathetic tone + structured handoff**
-- Also triggered when: identity verification fails, issue is out of scope, or an exception to policy is needed
-
----
-
-### 7. Guardrail 1 — Scope Enforcement
-**What to say:** *"Can you help me write a cover letter?"* / *"What's the weather like in London?"*
-
-Bex declines politely and redirects back to Bookly topics.
-
-- Demonstrates: **Guardrail 1** — Bex is scoped exclusively to Bookly support
-
----
-
-### 8. Guardrail 3 — Unauthorised Data Access Blocked
-**What to say:** Ask for any order with a wrong email, e.g. `BK-1042` + `wrong@email.com`
-
-Bex calls the tool, which verifies the email server-side and returns `IDENTITY_VERIFICATION_FAILED`. No order data is returned. Bex apologises and offers escalation.
-
-- Demonstrates: **Guardrail 3 enforced in code** — the prompt cannot be talked out of this check
-
----
-
-### 9. Subscription Upsell
-**What to say:** Look up any order for `alex@example.com`
-
-The tool sees 4 orders in 45 days and flags `⭐ SUBSCRIPTION UPSELL OPPORTUNITY`. After fully resolving the customer's issue — and before asking for NPS feedback — Bex calls the `present_subscription_offer` tool, which triggers a 3-stage interactive sign-up experience inline in the chat:
-
-1. **Offer card** — £20/month plan summary with "✨ Yes, sign me up!" and "Maybe later" buttons
-2. **Payment confirmation** — masked card on file (e.g. Visa ••••4242) with confirm/cancel
-3. **Book carousel** — 6 personalised titles in a 3-column grid; customer picks exactly 2, then confirms
-
-Choosing "Maybe later" at any point dismisses the UI, sends a hidden `[SYSTEM:]` context message to Claude, and flows directly to the NPS closure. Bex does not push further.
-
-- Demonstrates: **contextual upsell driven by tool data, not hardcoded prompts; multi-stage Streamlit UI driven by session state**
-- The threshold (>3 orders / 45 days) and the flag live in `agent.py` — the prompt only defines how to act on it
-- `present_subscription_offer` is a real registered tool; Claude decides when to call it based on the flag in the tool result
-
----
-
-### 10. NPS & Conversation Closure
-**What to say:** *"Thanks, that's everything I needed!"*
-
-Bex first asks: *"Is there anything else I can help you with today?"* — confirming the customer is done before requesting feedback. Once confirmed, asks for an NPS score (0–10).
-
-| Score | What happens |
-|---|---|
-| **0–6** | Bex thanks the customer, then asks up to 2 targeted follow-up questions |
-| **7–10** | Bex skips follow-up and closes with a warm thank you |
-
-Bex always ends the conversation with a personalised thank you by name.
-
-- Demonstrates: **structured conversation lifecycle** — support → upsell → feedback → close
+Either way it ends by thanking you by name.
 
 ---
 
 ## Architecture
 
 ```
-app.py          → Streamlit UI: chat interface, demo sidebar, reset button
-agent.py        → BooklyAgent: Anthropic API calls, tool loop, tool implementations
-config.py       → Identity, static policies, guardrails, NPS rules, upsell rules, few-shot examples, tool schemas
-mock_data.py    → Simulated orders database (4 orders, all for alex@example.com)
+app.py         Streamlit UI — chat, sidebar, subscription cards
+agent.py       BooklyAgent — Anthropic API call, tool loop, tool implementations
+config.py      Identity, policies, guardrails, escalation, NPS, subscription, examples, tool schemas
+mock_data.py   4 simulated orders, the book catalogue, and the masked payment record
 ```
 
 ### Request flow
 
 ```
-User types message
-  → app.py appends to conversation history
-  → agent.py calls Claude with (system prompt + full conversation history + tool schemas)
+User types a message
+  → app.py appends it to st.session_state.messages
+  → agent.py calls Claude with (system prompt + history + tool schemas)
   → Claude returns text OR a tool_use block
-      → text: store in history, display to user
-      → tool_use: agent.py executes mock function
-                  → injects tool_result into conversation history
-                  → calls Claude again for synthesis
-                  → repeat if Claude chains another tool call
+      text     → store and render
+      tool_use → execute the mock function
+                 → inject the result into history
+                 → call Claude again to synthesise
+                 → recurse if it chains another tool
 ```
 
-No frameworks. No LangChain. No agent orchestration platforms. One class, one API, one loop.
+One class, one API, one loop.
+
+### Tools
+
+| Tool                          | What it does                                                              |
+|-------------------------------|---------------------------------------------------------------------------|
+| `get_order_status`            | Verify identity and return order details. Adds the ⭐ flag when eligible.  |
+| `initiate_return`             | Re-verify identity, check eligibility in code, return a confirmation.     |
+| `present_subscription_offer`  | Set `subscription_stage="offer"` so the UI renders the 3-stage flow.      |
+| `escalate_to_human`           | Generate a ticket ID and a structured handoff message.                    |
 
 ---
 
 ## Guardrails
 
-| # | Guardrail | In prompt | In code |
-|---|---|---|---|
-| 1 | **Bookly scope only** — off-topic questions redirected | ✅ Instruction + 2 examples | — |
-| 2 | **Grounded responses** — no invented policies or details | ✅ Anti-hallucination instruction | ✅ Tools are the only source of dynamic data |
-| 3 | **No unauthorised data access** — identity verified before any order data returned | ✅ Collect order ID + email before any lookup; reuse email already given — never ask twice | ✅ `get_order_status` and `initiate_return` verify email server-side; mismatch = hard denial |
+| # | Guardrail                          | Prompt | Code |
+|---|------------------------------------|--------|------|
+| 1 | Bookly scope only                  | ✅     | —    |
+| 2 | No invented policies or details    | ✅     | ✅ Tools are the only source of dynamic data |
+| 3 | No unauthorised data access        | ✅ Identity collected once, reused session-wide | ✅ Email verified server-side on every tool call |
 
-> **Key point for demos:** Guardrail 3 lives in both the prompt *and* the code. The prompt can be persuaded — the code cannot.
+Guardrail 3 lives in both places on purpose. The prompt can be talked around. The code can't.
 
 ---
 
-## Key Technical Decisions
+## How the subscription trigger stays reliable
 
-### 1. Narrow, explicit tool schemas
-Each tool has named required fields. Claude cannot call `get_order_status` without both `order_id` and `customer_email` — the Anthropic API enforces it at the schema level.
-- **Trade-off:** More schemas to maintain as tools grow
-- **Why it's worth it:** Eliminates ambiguous calls; forces identity collection before action; makes tool behaviour predictable
+Haiku is fast but can lose track of the ⭐ flag over a long conversation. Rather than rely on the prompt alone, the agent flips a `session_state.subscription_pending` flag in Python when the flag fires. On every subsequent Claude call, the system prompt picks up an extra `⚠️ ACTIVE SUBSCRIPTION REMINDER` block from `config.SUBSCRIPTION_PENDING_REMINDER` until the offer has been presented. Once `present_subscription_offer` runs, the flag clears and the reminder disappears.
 
-### 2. Full conversation history over RAG
-Every Claude call gets the full conversation history. No vector store, no retrieval step.
-- **Trade-off:** Token cost grows with conversation length
-- **Why it's worth it:** Support conversations are short (<20 turns); no retrieval errors; Claude has complete context for nuanced follow-ups. RAG makes sense at scale — not here.
+The trigger logic itself stays declarative — code computes it, the model decides when to fire — but the reminder ensures the model can't overlook it.
 
-### 3. Prompt-driven clarification, not rule-based routing
-Claude decides when to ask for clarification vs. proceed, guided by the system prompt and few-shot examples — not an explicit intent classifier.
-- **Trade-off:** Slightly less deterministic than hard routing logic
-- **Why it's worth it:** Handles ambiguous phrasing naturally; no brittle decision trees; update behaviour by editing the prompt, not the code
+---
 
-### 4. Upsell and NPS logic separated by concern
-The subscription threshold and NPS scoring rules are defined in `agent.py` and `config.py` respectively — not tangled together in the prompt. The tool result carries the flag; the prompt defines what to do with it.
-- **Trade-off:** Slightly more surface area across files
-- **Why it's worth it:** Each concern is independently testable and adjustable — change the threshold in one line without touching the conversational instructions
+## Design decisions worth calling out
+
+**Narrow tool schemas with required fields.** Claude can't call `get_order_status` without both an order ID and an email; the API rejects malformed calls. That keeps identity collection honest.
+
+**Full history over RAG.** Support conversations are short. Passing everything every turn costs tokens but eliminates retrieval errors and keeps Claude's context perfect for nuanced follow-ups.
+
+**Prompt-driven clarification, not intent routing.** Bex decides whether to clarify or act based on the system prompt and a handful of few-shot examples. No brittle decision tree to update when policy changes.
+
+**Upsell and NPS as separate concerns.** Subscription threshold in `agent.py`. NPS rules in `config.py`. Each is independently testable, and editing one doesn't risk breaking the other.
 
 ---
 
 ## What I'd do differently in production
 
-1. **Authentication before the chat starts** — verify the customer via session token or OTP before the conversation, not mid-chat via email
-2. **RAG for policy docs** — replace the static context string with vector search over a full knowledge base (scales to hundreds of policy pages without bloating every prompt)
-3. **Streaming responses** — use the Anthropic streaming API so responses appear progressively; critical for latency perception on longer answers
-4. **Evaluation harness** — systematic test cases for every guardrail, flow, and edge case; run automatically on every prompt change before deploying
-5. **Real human handoff integration** — `escalate_to_human` would POST to Zendesk / Intercom / Freshdesk with full conversation context, not return a mock ticket
-6. **Structured logging + audit trail** — every tool call, tool result, and model response logged for GDPR compliance, debugging, and CSAT analysis
-7. **Sliding context window** — for very long sessions, summarise older turns rather than passing unbounded history
+1. **Authenticate before the chat starts** — session token or OTP, not mid-conversation email exchange.
+2. **RAG for policy docs** — replace the static context string with vector search once the knowledge base outgrows a single prompt.
+3. **Streaming responses** — use the Anthropic streaming API so longer answers feel immediate.
+4. **Evaluation harness** — automated regression tests covering every guardrail, every flow, every edge case before any prompt change ships.
+5. **Real human handoff** — `escalate_to_human` POSTs to Zendesk / Intercom / Freshdesk with full context, not a mock ticket.
+6. **Audit logging** — every tool call and response logged for GDPR, debugging, and CSAT analysis.
+7. **Sliding context window** — for very long sessions, summarise older turns instead of carrying the whole transcript.
 
 ---
 
-## File Structure
+## File layout
 
 ```
 ss-bookly-agent/
-├── app.py            # Streamlit UI
-├── agent.py          # BooklyAgent class, tool loop, tool implementations
-├── config.py         # Identity, static context, guardrails, NPS, upsell, tool schemas
-├── mock_data.py      # 4 simulated orders (all for alex@example.com)
+├── app.py           Streamlit UI
+├── agent.py         BooklyAgent class, tool loop, tool implementations
+├── config.py        Identity, policies, guardrails, NPS, subscription, examples, tool schemas
+├── mock_data.py     4 orders for alex@example.com, book catalogue, masked card record
 ├── requirements.txt
-├── .env.example      # API key template
+├── .env.example
 └── README.md
 ```

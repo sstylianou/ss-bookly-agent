@@ -1,15 +1,14 @@
 """
 mock_data.py — Simulated Bookly backend data
 
-In a production system, this would be replaced by:
-  - A database query (PostgreSQL, DynamoDB, etc.)
-  - An internal orders API
-  - An OMS (Order Management System) integration
+In a production system, this would be replaced by a database query
+(PostgreSQL, DynamoDB), an internal orders API, or an OMS integration.
 
-Dates are relative to today (2026-05-27):
-  BK-1042: ordered 7 days ago  → within 30-day return window ✓
-  BK-2055: ordered 2 days ago  → processing, not yet shipped ✓
-  BK-3011: ordered 37 days ago → OUTSIDE 30-day return window ✗  (good demo edge case)
+Order timing (relative to demo date 2026-05-30):
+  BK-1042: ordered  8 days ago  → within  30-day return window
+  BK-2055: ordered  3 days ago  → still processing, not yet shipped
+  BK-3011: ordered 38 days ago  → outside 30-day return window (edge case)
+  BK-0988: ordered 18 days ago  → 4th order in 45 days → triggers subscription
 """
 
 ORDERS = {
@@ -27,8 +26,8 @@ ORDERS = {
                 "type": "physical"
             }
         ],
-        "order_date": "2026-05-20",
-        "estimated_delivery": "2026-05-28",
+        "order_date": "2026-05-22",
+        "estimated_delivery": "2026-05-30",
         "tracking_number": "TRK-9923344",
         "shipping_method": "Standard Delivery"
     },
@@ -53,8 +52,8 @@ ORDERS = {
                 "type": "physical"
             }
         ],
-        "order_date": "2026-05-25",
-        "estimated_delivery": "2026-06-01",
+        "order_date": "2026-05-27",
+        "estimated_delivery": "2026-06-03",
         "tracking_number": None,
         "shipping_method": "Express Delivery"
     },
@@ -72,8 +71,8 @@ ORDERS = {
                 "type": "physical"
             }
         ],
-        "order_date": "2026-04-20",       # 37 days ago — outside return window
-        "estimated_delivery": "2026-04-25",
+        "order_date": "2026-04-22",       # 38 days ago — outside return window
+        "estimated_delivery": "2026-04-27",
         "tracking_number": "TRK-8812211",
         "shipping_method": "Standard Delivery"
     },
@@ -91,8 +90,8 @@ ORDERS = {
                 "type": "physical"
             }
         ],
-        "order_date": "2026-05-10",       # 17 days ago — 4th order in 45 days → triggers subscription upsell
-        "estimated_delivery": "2026-05-15",
+        "order_date": "2026-05-12",       # 18 days ago — 4th order in 45 days → triggers subscription upsell
+        "estimated_delivery": "2026-05-17",
         "tracking_number": "TRK-7751002",
         "shipping_method": "Standard Delivery"
     }

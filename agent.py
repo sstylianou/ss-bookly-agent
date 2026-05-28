@@ -17,7 +17,7 @@ import uuid
 import anthropic
 from datetime import datetime, date, timedelta
 
-from config import IDENTITY, TASK_SPECIFIC_INSTRUCTIONS, TOOLS, MODEL
+from config import IDENTITY, SUBSCRIPTION_PENDING_REMINDER, TOOLS, MODEL
 from mock_data import ORDERS, RETURN_WINDOW_DAYS
 
 SUBSCRIPTION_ORDER_THRESHOLD = 3   # more than this many orders in the window triggers the upsell
@@ -44,27 +44,23 @@ class BooklyAgent:
     # ------------------------------------------------------------------
 
     def _call_claude(self, messages: list) -> anthropic.types.Message | dict:
-        system = IDENTITY
-        if (self.session_state.get("subscription_pending")
-                and not self.session_state.get("subscription_stage")):
-            system += (
-                "\n\n⚠️ ACTIVE SUBSCRIPTION REMINDER — YOU MUST DO THIS NEXT: "
-                "The ⭐ SUBSCRIPTION UPSELL OPPORTUNITY was triggered earlier in this session. "
-                "The customer has more than 3 orders in 45 days. "
-                "When the customer confirms they have no more questions, your VERY NEXT action "
-                "is to call the `present_subscription_offer` tool — before any NPS question. "
-                "Do NOT skip this. Do NOT describe the plan in text."
-            )
         try:
             return self.client.messages.create(
                 model=MODEL,
-                system=system,
+                system=self._build_system_prompt(),
                 max_tokens=1024,
                 messages=messages,
                 tools=TOOLS,
             )
         except Exception as e:
             return {"error": str(e)}
+
+    def _build_system_prompt(self) -> str:
+        """Base identity + a live subscription reminder when the ⭐ flag is pending."""
+        if (self.session_state.get("subscription_pending")
+                and not self.session_state.get("subscription_stage")):
+            return IDENTITY + SUBSCRIPTION_PENDING_REMINDER
+        return IDENTITY
 
     # ------------------------------------------------------------------
     # Response handling (recursive for tool use loops)
@@ -74,44 +70,27 @@ class BooklyAgent:
         if isinstance(response, dict) and "error" in response:
             return f"⚠️ Something went wrong: {response['error']}. Please try again or contact support@bookly.com."
 
-        # --- Tool use: execute all tools, inject results, recurse ---
+        # Tool use: persist assistant turn, execute each tool, inject results, recurse
         if response.stop_reason == "tool_use":
-            # Persist assistant's full response (includes tool_use content blocks)
-            self.session_state.messages.append({
-                "role": "assistant",
-                "content": response.content
-            })
+            self.session_state.messages.append({"role": "assistant", "content": response.content})
 
-            # Execute every tool call in this response
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    result = self._execute_tool(block.name, block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result
-                    })
+            tool_results = [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": self._execute_tool(block.name, block.input),
+                }
+                for block in response.content if block.type == "tool_use"
+            ]
+            self.session_state.messages.append({"role": "user", "content": tool_results})
 
-            # Inject tool results as a user turn (Anthropic API pattern)
-            self.session_state.messages.append({
-                "role": "user",
-                "content": tool_results
-            })
+            return self._handle_response(self._call_claude(self.session_state.messages))
 
-            # Get Claude's synthesis of the tool result
-            follow_up = self._call_claude(self.session_state.messages)
-            return self._handle_response(follow_up)  # handles chained tool calls too
-
-        # --- Normal text response ---
-        elif response.stop_reason == "end_turn":
+        # Normal text response — store as plain string for Streamlit rendering
+        if response.stop_reason == "end_turn":
             for block in response.content:
                 if hasattr(block, "text"):
-                    # Store as plain string — Streamlit displays this; tool blocks are skipped in UI
-                    self.session_state.messages.append({
-                        "role": "assistant",
-                        "content": block.text
-                    })
+                    self.session_state.messages.append({"role": "assistant", "content": block.text})
                     return block.text
 
         return "I'm sorry, I wasn't able to process that. Please try again."
@@ -164,12 +143,10 @@ class BooklyAgent:
                 "Please double-check the order ID and try again."
             )
 
-        # Guardrail 3: identity check
         if order["customer_email"].lower() != customer_email.strip().lower():
             return (
                 "IDENTITY_VERIFICATION_FAILED: The email address provided does not match "
-                "the account associated with this order. No data has been returned. "
-                "Please offer to escalate to a human agent."
+                "the account associated with this order. No data has been returned."
             )
 
         # Calculate return eligibility
