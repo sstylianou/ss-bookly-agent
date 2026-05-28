@@ -132,10 +132,17 @@ Bex calls the tool, which verifies the email server-side and returns `IDENTITY_V
 ### 9. Subscription Upsell
 **What to say:** Look up any order for `alex@example.com`
 
-The tool sees 4 orders in 45 days and flags `⭐ SUBSCRIPTION UPSELL OPPORTUNITY`. After resolving the customer's issue, Bex naturally mentions the Bookly Subscription Plan: **£20/month, 2 curated books, managed in the Bookly app**. If the customer isn't interested, Bex drops it immediately.
+The tool sees 4 orders in 45 days and flags `⭐ SUBSCRIPTION UPSELL OPPORTUNITY`. After fully resolving the customer's issue — and before asking for NPS feedback — Bex calls the `present_subscription_offer` tool, which triggers a 3-stage interactive sign-up experience inline in the chat:
 
-- Demonstrates: **contextual upsell driven by tool data, not hardcoded prompts**
+1. **Offer card** — £20/month plan summary with "✨ Yes, sign me up!" and "Maybe later" buttons
+2. **Payment confirmation** — masked card on file (e.g. Visa ••••4242) with confirm/cancel
+3. **Book carousel** — 6 personalised titles in a 3-column grid; customer picks exactly 2, then confirms
+
+Choosing "Maybe later" at any point dismisses the UI, sends a hidden `[SYSTEM:]` context message to Claude, and flows directly to the NPS closure. Bex does not push further.
+
+- Demonstrates: **contextual upsell driven by tool data, not hardcoded prompts; multi-stage Streamlit UI driven by session state**
 - The threshold (>3 orders / 45 days) and the flag live in `agent.py` — the prompt only defines how to act on it
+- `present_subscription_offer` is a real registered tool; Claude decides when to call it based on the flag in the tool result
 
 ---
 
