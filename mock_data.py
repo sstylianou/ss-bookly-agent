@@ -100,3 +100,20 @@ ORDERS = {
 
 # Bookly return policy constants
 RETURN_WINDOW_DAYS = 30
+
+# Mock book catalogue for the subscription selection carousel
+BOOKS_CATALOG = [
+    {"id": "B001", "title": "Atomic Habits",                        "author": "James Clear",         "genre": "Self-Development", "emoji": "🧠"},
+    {"id": "B002", "title": "The Midnight Library",                 "author": "Matt Haig",           "genre": "Fiction",          "emoji": "🌙"},
+    {"id": "B003", "title": "Thinking, Fast and Slow",              "author": "Daniel Kahneman",     "genre": "Psychology",       "emoji": "💡"},
+    {"id": "B004", "title": "Normal People",                        "author": "Sally Rooney",        "genre": "Fiction",          "emoji": "❤️"},
+    {"id": "B005", "title": "A Short History of Nearly Everything", "author": "Bill Bryson",         "genre": "Science",          "emoji": "🔬"},
+    {"id": "B006", "title": "Project Hail Mary",                    "author": "Andy Weir",           "genre": "Sci-Fi",           "emoji": "🚀"},
+]
+
+# Mock payment method on file (displayed masked — last 4 digits only)
+PAYMENT_ON_FILE = {
+    "type":    "Visa",
+    "last4":   "4242",
+    "expires": "03/28",
+}

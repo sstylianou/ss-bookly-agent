@@ -123,6 +123,8 @@ class BooklyAgent:
                 tool_input["reason"],
                 tool_input["customer_email"]
             )
+        elif tool_name == "present_subscription_offer":
+            return self._present_subscription_offer()
         elif tool_name == "escalate_to_human":
             return self._escalate_to_human(
                 tool_input["reason"],
@@ -198,7 +200,7 @@ class BooklyAgent:
             subscription_note = (
                 f"\n⭐ SUBSCRIPTION UPSELL OPPORTUNITY: This customer has placed "
                 f"{recent_order_count} orders in the last {SUBSCRIPTION_WINDOW_DAYS} days. "
-                "After resolving their issue, recommend the Bookly Subscription Plan."
+                "After fully resolving their enquiry, call the present_subscription_offer tool."
             )
 
         return f"""IDENTITY VERIFIED ✓ — Order data retrieved successfully.
@@ -286,6 +288,18 @@ Next steps for customer:
 
 Note: Refund will be returned to the original payment method.
 """
+
+    def _present_subscription_offer(self) -> str:
+        """
+        Trigger the interactive subscription sign-up UI in the Streamlit frontend.
+        Sets subscription_stage so app.py renders the offer card immediately after this response.
+        """
+        self.session_state.subscription_stage = "offer"
+        return (
+            "SUBSCRIPTION_OFFER_DISPLAYED ✓ — The Bookly Subscription Plan offer has been "
+            "presented to the customer with an interactive sign-up experience. "
+            "Introduce it warmly and wait for the customer to interact with the UI."
+        )
 
     def _escalate_to_human(self, reason: str, conversation_summary: str) -> str:
         """
