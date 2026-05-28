@@ -217,7 +217,7 @@ def render_book_selection():
     <p style="color:#A59FFF; font-size:11px; text-transform:uppercase;
               letter-spacing:2px; margin:0 0 6px">📖 Choose your first two books</p>
     <p style="color:#8B9AB8; margin:0; font-size:14px">
-        Pick any two from your personalised shortlist — you can swap them in the Bookly app anytime.
+        Pick any two from your personalised shortlist — based on your reading history.
     </p>
 </div>
 """, unsafe_allow_html=True)

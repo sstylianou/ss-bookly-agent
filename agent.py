@@ -200,7 +200,9 @@ class BooklyAgent:
             subscription_note = (
                 f"\n⭐ SUBSCRIPTION UPSELL OPPORTUNITY: This customer has placed "
                 f"{recent_order_count} orders in the last {SUBSCRIPTION_WINDOW_DAYS} days. "
-                "After fully resolving their enquiry, call the present_subscription_offer tool."
+                "Once their issue is fully resolved AND they confirm they have no more questions, "
+                "call the present_subscription_offer tool BEFORE asking for NPS feedback. "
+                "Do NOT call it during or immediately after issue resolution."
             )
 
         return f"""IDENTITY VERIFIED ✓ — Order data retrieved successfully.
