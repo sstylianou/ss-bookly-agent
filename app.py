@@ -24,6 +24,8 @@ def init_session():
         st.session_state.subscription_stage = None          # offer | payment | books
     if "subscription_books_selected" not in st.session_state:
         st.session_state.subscription_books_selected = []   # list of book IDs
+    if "subscription_pending" not in st.session_state:
+        st.session_state.subscription_pending = False       # True once ⭐ flag fires
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────

@@ -44,10 +44,21 @@ class BooklyAgent:
     # ------------------------------------------------------------------
 
     def _call_claude(self, messages: list) -> anthropic.types.Message | dict:
+        system = IDENTITY
+        if (self.session_state.get("subscription_pending")
+                and not self.session_state.get("subscription_stage")):
+            system += (
+                "\n\n⚠️ ACTIVE SUBSCRIPTION REMINDER — YOU MUST DO THIS NEXT: "
+                "The ⭐ SUBSCRIPTION UPSELL OPPORTUNITY was triggered earlier in this session. "
+                "The customer has more than 3 orders in 45 days. "
+                "When the customer confirms they have no more questions, your VERY NEXT action "
+                "is to call the `present_subscription_offer` tool — before any NPS question. "
+                "Do NOT skip this. Do NOT describe the plan in text."
+            )
         try:
             return self.client.messages.create(
                 model=MODEL,
-                system=IDENTITY,
+                system=system,
                 max_tokens=1024,
                 messages=messages,
                 tools=TOOLS,
@@ -197,12 +208,12 @@ class BooklyAgent:
         )
         subscription_note = ""
         if recent_order_count > SUBSCRIPTION_ORDER_THRESHOLD:
+            self.session_state.subscription_pending = True
             subscription_note = (
                 f"\n⭐ SUBSCRIPTION UPSELL OPPORTUNITY: This customer has placed "
                 f"{recent_order_count} orders in the last {SUBSCRIPTION_WINDOW_DAYS} days. "
                 "Once their issue is fully resolved AND they confirm they have no more questions, "
-                "call the present_subscription_offer tool BEFORE asking for NPS feedback. "
-                "Do NOT call it during or immediately after issue resolution."
+                "call the present_subscription_offer tool BEFORE asking for NPS feedback."
             )
 
         return f"""IDENTITY VERIFIED ✓ — Order data retrieved successfully.
@@ -297,6 +308,7 @@ Note: Refund will be returned to the original payment method.
         Sets subscription_stage so app.py renders the offer card immediately after this response.
         """
         self.session_state.subscription_stage = "offer"
+        self.session_state.subscription_pending = False
         return (
             "SUBSCRIPTION_OFFER_DISPLAYED ✓ — The Bookly Subscription Plan offer has been "
             "presented to the customer with an interactive sign-up experience. "
