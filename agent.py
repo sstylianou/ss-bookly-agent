@@ -11,10 +11,17 @@ Design decision: full conversation history passed on every turn.
 Trade-off: token cost grows with conversation length.
 Worth it for support use cases (typically <20 turns) — no retrieval errors,
 Claude has perfect context. In production: sliding window or RAG for policy docs.
+
+Orders API: if ORDERS_API_URL is set in the environment, order lookups go to
+that endpoint (e.g. a mockapi.io project). Falls back to the local dict in
+mock_data.py so the app works without any external setup.
 """
 
+import os
+import json
 import uuid
 import anthropic
+import requests
 from datetime import datetime, date, timedelta
 
 from config import IDENTITY, SUBSCRIPTION_PENDING_REMINDER, TOOLS, MODEL
@@ -22,6 +29,36 @@ from mock_data import ORDERS, RETURN_WINDOW_DAYS
 
 SUBSCRIPTION_ORDER_THRESHOLD = 3   # more than this many orders in the window triggers the upsell
 SUBSCRIPTION_WINDOW_DAYS = 45
+
+
+def _fetch_order(order_id: str) -> dict | None:
+    """
+    Look up an order. Tries the external REST API first (ORDERS_API_URL env var),
+    falls back to the local dict in mock_data.py on error or if not configured.
+
+    The API is expected to support:  GET /orders?order_id=BK-XXXX
+    Items may be returned as a list or as a JSON-encoded string — both are handled.
+    """
+    api_base = os.getenv("ORDERS_API_URL", "").rstrip("/")
+    if api_base:
+        try:
+            resp = requests.get(
+                f"{api_base}/orders",
+                params={"order_id": order_id.strip().upper()},
+                timeout=4,
+            )
+            resp.raise_for_status()
+            results = resp.json()
+            if results:
+                order = results[0]
+                # Normalise items field — stored as JSON string in some API tiers
+                if isinstance(order.get("items"), str):
+                    order["items"] = json.loads(order["items"])
+                return order
+        except Exception:
+            pass  # fall through to local mock on any network or parse error
+
+    return ORDERS.get(order_id.strip().upper())
 
 
 class BooklyAgent:
@@ -35,8 +72,8 @@ class BooklyAgent:
 
     def process_user_input(self, user_input: str) -> str:
         """Append user message, call Claude, handle response (including tool loops)."""
-        self.session_state.messages.append({"role": "user", "content": user_input})
-        response = self._call_claude(self.session_state.messages)
+        self.session_state["messages"].append({"role": "user", "content": user_input})
+        response = self._call_claude(self.session_state["messages"])
         return self._handle_response(response)
 
     # ------------------------------------------------------------------
@@ -72,7 +109,7 @@ class BooklyAgent:
 
         # Tool use: persist assistant turn, execute each tool, inject results, recurse
         if response.stop_reason == "tool_use":
-            self.session_state.messages.append({"role": "assistant", "content": response.content})
+            self.session_state["messages"].append({"role": "assistant", "content": response.content})
 
             tool_results = [
                 {
@@ -82,15 +119,15 @@ class BooklyAgent:
                 }
                 for block in response.content if block.type == "tool_use"
             ]
-            self.session_state.messages.append({"role": "user", "content": tool_results})
+            self.session_state["messages"].append({"role": "user", "content": tool_results})
 
-            return self._handle_response(self._call_claude(self.session_state.messages))
+            return self._handle_response(self._call_claude(self.session_state["messages"]))
 
         # Normal text response — store as plain string for Streamlit rendering
         if response.stop_reason == "end_turn":
             for block in response.content:
                 if hasattr(block, "text"):
-                    self.session_state.messages.append({"role": "assistant", "content": block.text})
+                    self.session_state["messages"].append({"role": "assistant", "content": block.text})
                     return block.text
 
         return "I'm sorry, I wasn't able to process that. Please try again."
@@ -135,7 +172,7 @@ class BooklyAgent:
         Email is verified against the order record BEFORE any data is returned.
         A mismatch returns a hard denial — no partial data is ever leaked.
         """
-        order = ORDERS.get(order_id.strip().upper())
+        order = _fetch_order(order_id)
 
         if not order:
             return (
@@ -185,7 +222,7 @@ class BooklyAgent:
         )
         subscription_note = ""
         if recent_order_count > SUBSCRIPTION_ORDER_THRESHOLD:
-            self.session_state.subscription_pending = True
+            self.session_state["subscription_pending"] = True
             subscription_note = (
                 f"\n⭐ SUBSCRIPTION UPSELL OPPORTUNITY: This customer has placed "
                 f"{recent_order_count} orders in the last {SUBSCRIPTION_WINDOW_DAYS} days. "
@@ -219,7 +256,7 @@ Return eligibility: {return_status}{subscription_note}
         Return eligibility (30-day window, shipped status) is enforced in code,
         not just in the prompt — the prompt cannot be talked out of it.
         """
-        order = ORDERS.get(order_id.strip().upper())
+        order = _fetch_order(order_id)
 
         if not order:
             return f"ORDER_NOT_FOUND: No order with ID '{order_id}' found."
@@ -284,8 +321,8 @@ Note: Refund will be returned to the original payment method.
         Trigger the interactive subscription sign-up UI in the Streamlit frontend.
         Sets subscription_stage so app.py renders the offer card immediately after this response.
         """
-        self.session_state.subscription_stage = "offer"
-        self.session_state.subscription_pending = False
+        self.session_state["subscription_stage"] = "offer"
+        self.session_state["subscription_pending"] = False
         return (
             "SUBSCRIPTION_OFFER_DISPLAYED ✓ — The Bookly Subscription Plan offer has been "
             "presented to the customer with an interactive sign-up experience. "

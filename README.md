@@ -2,8 +2,6 @@
 
 A conversational support agent for **Bookly**, a fictional online bookstore. Python, the Anthropic Claude API, and Streamlit. No agent frameworks, no orchestration, no LangChain.
 
-> Take-home prototype. Built for readability and demo clarity over production hardening.
-
 **Live demo:** [ss-bookly-agent.streamlit.app](https://ss-bookly-agent.streamlit.app)
 
 ---
@@ -18,6 +16,31 @@ pip install -r requirements.txt
 cp .env.example .env        # then paste your Anthropic key
 streamlit run app.py        # http://localhost:8501
 ```
+
+## Testing
+
+**Unit tests** — exercise the tool implementations directly, no API calls needed:
+```bash
+pytest test_guardrails.py -v
+```
+
+**Eval harness** — end-to-end conversations through the real Claude API, asserting each guardrail holds in practice:
+```bash
+python evals/run_evals.py            # all 13 cases
+python evals/run_evals.py --id G3-02 # one case
+```
+
+## Orders API (optional)
+
+Order lookups go to a live REST API when `ORDERS_API_URL` is set in `.env`. The expected endpoint is `GET /orders?order_id=BK-XXXX` returning a JSON array.
+
+Setting one up with [mockapi.io](https://mockapi.io) (free tier):
+
+1. Create a project and a resource named `orders` with these fields: `order_id`, `customer_email`, `customer_name`, `status`, `order_date`, `estimated_delivery`, `tracking_number`, `shipping_method`, `items` (set type to *Object*)
+2. Add the four records matching the data in `mock_data.py`
+3. Set `ORDERS_API_URL=https://<your-project-id>.mockapi.io/api/v1` in `.env`
+
+Without `ORDERS_API_URL` the app works identically using the local dict — no setup required.
 
 ---
 
