@@ -32,13 +32,24 @@ python evals/run_evals.py --id G3-02 # one case
 
 ## Orders API (optional)
 
-Order lookups go to a live REST API when `ORDERS_API_URL` is set in `.env`. The expected endpoint is `GET /orders?order_id=BK-XXXX` returning a JSON array.
+Order lookups go to a live REST API when `ORDERS_API_URL` is set. The expected endpoint is `GET /orders?order_id=BK-XXXX` returning a JSON array.
 
-Setting one up with [mockapi.io](https://mockapi.io) (free tier):
+Setting one up with [mockapi.io](https://mockapi.io):
 
 1. Create a project and a resource named `orders` with these fields: `order_id`, `customer_email`, `customer_name`, `status`, `order_date`, `estimated_delivery`, `tracking_number`, `shipping_method`, `items` (set type to *Object*)
-2. Add the four records matching the data in `mock_data.py`
-3. Set `ORDERS_API_URL=https://<your-project-id>.mockapi.io/api/v1` in `.env`
+2. Add the four records — see the JSON in `mock_data.py`
+3. Your base URL will be in the format `https://<project-id>.mockapi.io/api/<project-name>`
+
+**Local development** — add to `.env`:
+```
+ORDERS_API_URL=https://<project-id>.mockapi.io/api/<project-name>
+```
+
+**Streamlit Cloud** — add to App settings → Secrets (TOML format, quotes required):
+```toml
+ANTHROPIC_API_KEY = "your_key_here"
+ORDERS_API_URL = "https://<project-id>.mockapi.io/api/<project-name>"
+```
 
 Without `ORDERS_API_URL` the app works identically using the local dict — no setup required.
 
