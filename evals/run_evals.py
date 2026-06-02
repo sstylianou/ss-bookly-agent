@@ -2,7 +2,7 @@
 End-to-end eval harness — runs real Claude conversations and asserts on outputs.
 
 Tests that the model honours each guardrail in practice, not just in unit tests.
-Requires ANTHROPIC_API_KEY in the environment.
+Loads ANTHROPIC_API_KEY from .env automatically if present.
 
 Usage:
     python evals/run_evals.py               # run all cases, print summary
@@ -10,6 +10,9 @@ Usage:
 """
 import sys, os, argparse, textwrap
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from agent import BooklyAgent
 from config import TASK_SPECIFIC_INSTRUCTIONS

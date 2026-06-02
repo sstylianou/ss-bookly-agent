@@ -17,6 +17,8 @@ that endpoint (e.g. a mockapi.io project). Falls back to the local dict in
 mock_data.py so the app works without any external setup.
 """
 
+from __future__ import annotations
+
 import os
 import json
 import uuid
