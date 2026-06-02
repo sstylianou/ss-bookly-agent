@@ -17,14 +17,13 @@ that endpoint (e.g. a mockapi.io project). Falls back to the local dict in
 mock_data.py so the app works without any external setup.
 """
 
-from __future__ import annotations
-
 import os
 import json
 import uuid
 import anthropic
 import requests
 from datetime import datetime, date, timedelta
+from typing import Optional, Union
 
 from config import IDENTITY, SUBSCRIPTION_PENDING_REMINDER, TOOLS, MODEL
 from mock_data import ORDERS, RETURN_WINDOW_DAYS
@@ -33,7 +32,7 @@ SUBSCRIPTION_ORDER_THRESHOLD = 3   # more than this many orders in the window tr
 SUBSCRIPTION_WINDOW_DAYS = 45
 
 
-def _fetch_order(order_id: str) -> dict | None:
+def _fetch_order(order_id: str) -> Optional[dict]:
     """
     Look up an order. Tries the external REST API first (ORDERS_API_URL env var),
     falls back to the local dict in mock_data.py on error or if not configured.
@@ -82,7 +81,7 @@ class BooklyAgent:
     # Claude API call
     # ------------------------------------------------------------------
 
-    def _call_claude(self, messages: list) -> anthropic.types.Message | dict:
+    def _call_claude(self, messages: list) -> Union[anthropic.types.Message, dict]:
         try:
             return self.client.messages.create(
                 model=MODEL,
