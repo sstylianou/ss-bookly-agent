@@ -12,7 +12,7 @@ import sys, os, argparse, textwrap
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=True)
 
 from agent import BooklyAgent
 from config import TASK_SPECIFIC_INSTRUCTIONS
